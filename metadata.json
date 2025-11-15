@@ -1,0 +1,8 @@
+{
+  "name": "SELIM Service Manager",
+  "description": "A complete system for managing service requests with a workflow from employee photo capture with GPS, to inspector approval, to company execution. Features three user profiles: Employee, Inspector (Fiscal SELIM), and Company (MB).",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
