@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSolicitations, updateSolicitation } from '../../services/storageService';
 import { Solicitation, SolicitationStatus, StatusUpdate } from '../../types';
@@ -34,26 +33,26 @@ const SolicitationCard: React.FC<{ solicitation: Solicitation; onUpdate: (id: st
                 </div>
                 <div>
                      <div className="space-y-3 text-premium-gray-700 mb-6">
-                        <p className="flex items-center"><MapPin className="h-5 w-5 mr-2 text-selim-green" /><strong>Address:</strong>&nbsp;{solicitation.address?.display_name || 'N/A'}</p>
-                        <p className="flex items-center"><Calendar className="h-5 w-5 mr-2 text-selim-green" /><strong>Received:</strong>&nbsp;{new Date(solicitation.createdAt).toLocaleString()}</p>
-                        <p className="flex items-center"><User className="h-5 w-5 mr-2 text-selim-green" /><strong>Sent by (Fiscal):</strong>&nbsp;{lastSelimApprover}</p>
+                        <p className="flex items-center"><MapPin className="h-5 w-5 mr-2 text-selim-green" /><strong>Endereço:</strong>&nbsp;{solicitation.address?.display_name || 'N/A'}</p>
+                        <p className="flex items-center"><Calendar className="h-5 w-5 mr-2 text-selim-green" /><strong>Recebido em:</strong>&nbsp;{new Date(solicitation.createdAt).toLocaleString()}</p>
+                        <p className="flex items-center"><User className="h-5 w-5 mr-2 text-selim-green" /><strong>Enviado por (Fiscal):</strong>&nbsp;{lastSelimApprover}</p>
                         {solicitation.observation && <p className="border-l-4 border-selim-green pl-4 italic">"{solicitation.observation}"</p>}
                     </div>
 
                     {solicitation.currentStatus !== SolicitationStatus.FINALIZADA && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.INICIADA)} disabled={solicitation.currentStatus === SolicitationStatus.INICIADA}><Play className="h-5 w-5 mr-2"/>Start</Button>
-                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.PENDENTE)} variant="secondary" disabled={solicitation.currentStatus === SolicitationStatus.PENDENTE}><Pause className="h-5 w-5 mr-2"/>Pending</Button>
-                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.FINALIZADA)} variant="primary"><Check className="h-5 w-5 mr-2"/>Finish</Button>
+                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.INICIADA)} disabled={solicitation.currentStatus === SolicitationStatus.INICIADA}><Play className="h-5 w-5 mr-2"/>Iniciar</Button>
+                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.PENDENTE)} variant="secondary" disabled={solicitation.currentStatus === SolicitationStatus.PENDENTE}><Pause className="h-5 w-5 mr-2"/>Pendente</Button>
+                            <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.FINALIZADA)} variant="primary"><Check className="h-5 w-5 mr-2"/>Finalizar</Button>
                         </div>
                     )}
 
                     <details className="mt-4 text-sm">
-                        <summary className="cursor-pointer font-medium text-selim-dark-blue flex items-center"><History className="h-4 w-4 mr-1"/> View History</summary>
+                        <summary className="cursor-pointer font-medium text-selim-dark-blue flex items-center"><History className="h-4 w-4 mr-1"/> Ver Histórico</summary>
                         <ul className="mt-2 pl-4 border-l-2 border-premium-gray-200 space-y-2">
                             {solicitation.statusHistory.map((h, i) => (
                                 <li key={i}>
-                                    <p><strong>{h.status}</strong> by {h.updatedBy}</p>
+                                    <p><strong>{h.status}</strong> por {h.updatedBy}</p>
                                     <p className="text-premium-gray-500 text-xs">{new Date(h.timestamp).toLocaleString()}</p>
                                 </li>
                             ))}
@@ -110,24 +109,24 @@ export const EmpresaMbDashboard: React.FC = () => {
     
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            <h2 className="text-3xl font-bold text-selim-dark-blue mb-6">Empresa MB Dashboard</h2>
+            <h2 className="text-3xl font-bold text-selim-dark-blue mb-6">Painel Empresa MB</h2>
             
             <section>
-                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Active Services ({active.length})</h3>
+                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Serviços Ativos ({active.length})</h3>
                 {active.length > 0 ? (
                      <div className="space-y-6">
                         {active.map(s => <SolicitationCard key={s.id} solicitation={s} onUpdate={handleUpdate} />)}
                     </div>
-                ) : <p className="text-premium-gray-500">No active services.</p>}
+                ) : <p className="text-premium-gray-500">Nenhum serviço ativo.</p>}
             </section>
             
             <section className="mt-12">
-                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Finished Services ({finished.length})</h3>
+                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Serviços Finalizados ({finished.length})</h3>
                 {finished.length > 0 ? (
                      <div className="space-y-6">
                         {finished.map(s => <SolicitationCard key={s.id} solicitation={s} onUpdate={handleUpdate} />)}
                     </div>
-                ) : <p className="text-premium-gray-500">No services have been finished yet.</p>}
+                ) : <p className="text-premium-gray-500">Nenhum serviço foi finalizado ainda.</p>}
             </section>
         </div>
     );

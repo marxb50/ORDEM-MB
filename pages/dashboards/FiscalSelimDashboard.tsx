@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSolicitations, updateSolicitation } from '../../services/storageService';
 import { Solicitation, SolicitationStatus, StatusUpdate } from '../../types';
@@ -31,23 +30,23 @@ const SolicitationCard: React.FC<{ solicitation: Solicitation; onUpdate: (id: st
             </div>
             <div>
                 <div className="space-y-3 text-premium-gray-700">
-                    <p className="flex items-center"><MapPin className="h-5 w-5 mr-2 text-selim-green" /><strong>Address:</strong>&nbsp;{solicitation.address?.display_name || 'N/A'}</p>
-                    <p className="flex items-center"><Calendar className="h-5 w-5 mr-2 text-selim-green" /><strong>Created:</strong>&nbsp;{new Date(solicitation.createdAt).toLocaleString()}</p>
-                    <p className="flex items-center"><User className="h-5 w-5 mr-2 text-selim-green" /><strong>By:</strong>&nbsp;{solicitation.employeeName}</p>
+                    <p className="flex items-center"><MapPin className="h-5 w-5 mr-2 text-selim-green" /><strong>Endereço:</strong>&nbsp;{solicitation.address?.display_name || 'N/A'}</p>
+                    <p className="flex items-center"><Calendar className="h-5 w-5 mr-2 text-selim-green" /><strong>Criado em:</strong>&nbsp;{new Date(solicitation.createdAt).toLocaleString()}</p>
+                    <p className="flex items-center"><User className="h-5 w-5 mr-2 text-selim-green" /><strong>Por:</strong>&nbsp;{solicitation.employeeName}</p>
                     {solicitation.observation && <p className="border-l-4 border-selim-green pl-4 italic">"{solicitation.observation}"</p>}
                 </div>
                 {isActionable && (
                     <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                        <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.ENVIADO_PARA_MB)} variant="primary"><CheckCircle className="h-5 w-5 mr-2"/>Approve & Send to MB</Button>
-                        <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.RECUSADO)} variant="danger"><XCircle className="h-5 w-5 mr-2"/>Refuse</Button>
+                        <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.ENVIADO_PARA_MB)} variant="primary"><CheckCircle className="h-5 w-5 mr-2"/>Aprovar e Enviar para MB</Button>
+                        <Button onClick={() => onUpdate(solicitation.id, SolicitationStatus.RECUSADO)} variant="danger"><XCircle className="h-5 w-5 mr-2"/>Recusar</Button>
                     </div>
                 )}
                  <details className="mt-4 text-sm">
-                    <summary className="cursor-pointer font-medium text-selim-dark-blue flex items-center"><History className="h-4 w-4 mr-1"/> View History</summary>
+                    <summary className="cursor-pointer font-medium text-selim-dark-blue flex items-center"><History className="h-4 w-4 mr-1"/> Ver Histórico</summary>
                     <ul className="mt-2 pl-4 border-l-2 border-premium-gray-200 space-y-2">
                         {solicitation.statusHistory.map((h, i) => (
                              <li key={i}>
-                                <p><strong>{h.status}</strong> by {h.updatedBy}</p>
+                                <p><strong>{h.status}</strong> por {h.updatedBy}</p>
                                 <p className="text-premium-gray-500 text-xs">{new Date(h.timestamp).toLocaleString()}</p>
                             </li>
                         ))}
@@ -100,24 +99,24 @@ export const FiscalSelimDashboard: React.FC = () => {
     
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            <h2 className="text-3xl font-bold text-selim-dark-blue mb-6">Fiscal SELIM Dashboard</h2>
+            <h2 className="text-3xl font-bold text-selim-dark-blue mb-6">Painel Fiscal SELIM</h2>
 
             <section>
-                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Pending Approval ({pendingApproval.length})</h3>
+                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Pendente de Aprovação ({pendingApproval.length})</h3>
                 {pendingApproval.length > 0 ? (
                     <div className="space-y-6">
                         {pendingApproval.map(s => <SolicitationCard key={s.id} solicitation={s} onUpdate={handleUpdate} isActionable={true} />)}
                     </div>
-                ) : <p className="text-premium-gray-500">No new solicitations to review.</p>}
+                ) : <p className="text-premium-gray-500">Nenhuma nova solicitação para revisar.</p>}
             </section>
 
              <section className="mt-12">
-                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Tracked Solicitations ({others.length})</h3>
+                <h3 className="text-2xl font-semibold text-premium-gray-800 mb-4 border-b-2 border-selim-green pb-2">Solicitações Acompanhadas ({others.length})</h3>
                 {others.length > 0 ? (
                     <div className="space-y-6">
                         {others.map(s => <SolicitationCard key={s.id} solicitation={s} onUpdate={handleUpdate} isActionable={false} />)}
                     </div>
-                ) : <p className="text-premium-gray-500">No solicitations have been processed yet.</p>}
+                ) : <p className="text-premium-gray-500">Nenhuma solicitação foi processada ainda.</p>}
             </section>
         </div>
     );
