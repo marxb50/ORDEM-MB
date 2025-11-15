@@ -79,6 +79,13 @@ export const FuncionarioDashboard: React.FC = () => {
     
     const fetchGeolocation = () => {
         setStatus({ type: 'loading', message: 'Obtendo coordenadas GPS...' });
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000, // 10 segundos de timeout
+            maximumAge: 0,
+        };
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
@@ -87,8 +94,24 @@ export const FuncionarioDashboard: React.FC = () => {
                 fetchAddress(geoData);
             },
             (error) => {
-                setStatus({ type: 'error', message: `Erro de geolocalização: ${error.message}` });
-            }
+                let errorMessage = 'Não foi possível obter a localização. ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Permissão negada pelo usuário.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Sinal de GPS indisponível.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'A requisição expirou. Tente novamente.';
+                        break;
+                    default:
+                        errorMessage += 'Ocorreu um erro desconhecido.';
+                        break;
+                }
+                setStatus({ type: 'error', message: errorMessage });
+            },
+            options
         );
     };
 
@@ -96,20 +119,25 @@ export const FuncionarioDashboard: React.FC = () => {
         setStatus({ type: 'loading', message: 'Localizando endereço...' });
         try {
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${geoData.latitude}&lon=${geoData.longitude}`);
-            if (!response.ok) throw new Error('Falha ao buscar endereço.');
+            if (!response.ok) throw new Error('Serviço de mapas indisponível.');
             const data = await response.json();
+
+            if (!data || !data.address) {
+                throw new Error('Formato de endereço inesperado.');
+            }
+
             const addr: AddressData = {
-                road: data.address.road || 'N/A',
-                suburb: data.address.suburb || 'N/A',
-                city: data.address.city || 'N/A',
-                postcode: data.address.postcode || 'N/A',
-                country: data.address.country || 'N/A',
-                display_name: data.display_name || 'N/A',
+                road: data.address.road || 'Rua não encontrada',
+                suburb: data.address.suburb || 'Bairro não encontrado',
+                city: data.address.city || data.address.town || data.address.village || 'Cidade não encontrada',
+                postcode: data.address.postcode || 'CEP não encontrado',
+                country: data.address.country || 'País não encontrado',
+                display_name: data.display_name || 'Endereço completo não disponível',
             };
             setAddress(addr);
             setStatus({ type: 'idle', message: '' });
-        } catch (error) {
-            setStatus({ type: 'error', message: 'Não foi possível encontrar o endereço. Tente novamente.' });
+        } catch (error: any) {
+            setStatus({ type: 'error', message: `Não foi possível encontrar o endereço: ${error.message}` });
             setAddress(null);
         }
     };
