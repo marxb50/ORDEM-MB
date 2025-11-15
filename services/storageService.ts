@@ -1,52 +1,46 @@
 
-import { User, Solicitation } from '../types';
+import { Solicitation } from '../types';
+import { User } from '../types';
 
-const USERS_KEY = 'selim_users';
-const SOLICITATIONS_KEY = 'selim_solicitations';
+// This service now acts as an API client.
+
+// --- Solicitation Management via API ---
+
+export const getSolicitations = async (): Promise<Solicitation[]> => {
+  const response = await fetch('/api/solicitations');
+  if (!response.ok) {
+    throw new Error('Failed to fetch solicitations');
+  }
+  return response.json();
+};
+
+export const addSolicitation = async (solicitation: Solicitation): Promise<Solicitation> => {
+  const response = await fetch('/api/solicitations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(solicitation),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to add solicitation');
+  }
+  return response.json();
+};
+
+export const updateSolicitation = async (updatedSolicitation: Solicitation): Promise<Solicitation> => {
+    const response = await fetch('/api/solicitations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSolicitation),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update solicitation');
+    }
+    return response.json();
+};
+
+// --- Session Management (remains client-side) ---
+
 const SESSION_KEY = 'selim_session';
-
-// --- User Management ---
-
-export const getUsers = (): User[] => {
-  const users = localStorage.getItem(USERS_KEY);
-  return users ? JSON.parse(users) : [];
-};
-
-export const saveUsers = (users: User[]): void => {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-};
-
-export const addUser = (user: User): void => {
-  const users = getUsers();
-  users.push(user);
-  saveUsers(users);
-};
-
-// --- Solicitation Management ---
-
-export const getSolicitations = (): Solicitation[] => {
-  const solicitations = localStorage.getItem(SOLICITATIONS_KEY);
-  return solicitations ? JSON.parse(solicitations) : [];
-};
-
-export const saveSolicitations = (solicitations: Solicitation[]): void => {
-  localStorage.setItem(SOLICITATIONS_KEY, JSON.stringify(solicitations));
-};
-
-export const addSolicitation = (solicitation: Solicitation): void => {
-  const solicitations = getSolicitations();
-  solicitations.push(solicitation);
-  saveSolicitations(solicitations);
-};
-
-export const updateSolicitation = (updatedSolicitation: Solicitation): void => {
-  let solicitations = getSolicitations();
-  solicitations = solicitations.map(s => s.id === updatedSolicitation.id ? updatedSolicitation : s);
-  saveSolicitations(solicitations);
-};
-
-
-// --- Session Management ---
 
 export const saveSession = (user: User): void => {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));

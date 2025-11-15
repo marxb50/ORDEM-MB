@@ -1,6 +1,7 @@
+
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '../types';
-import { getUsers, addUser, saveSession, getSession, clearSession } from '../services/storageService';
+import { saveSession, getSession, clearSession } from '../services/storageService';
 
 interface AuthContextType {
   user: User | null;
@@ -26,32 +27,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = useCallback(async (email: string, pass: string): Promise<User> => {
-    const users = getUsers();
-    const foundUser = users.find(u => u.email === email && u.passwordHash === pass); // In real app, compare hashed password
-    if (!foundUser) {
-      throw new Error("Credenciais inválidas");
+    const response = await fetch('/api/auth?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Credenciais inválidas');
     }
-    setUser(foundUser);
-    saveSession(foundUser);
-    return foundUser;
+    setUser(data);
+    saveSession(data);
+    return data;
   }, []);
 
   const register = useCallback(async (name: string, email: string, pass: string, profileType: User['profileType']): Promise<User> => {
-    const users = getUsers();
-    if (users.some(u => u.email === email)) {
-      throw new Error("Usuário com este e-mail já existe");
+    const response = await fetch('/api/auth?action=register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password: pass, profileType }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || 'Falha ao registrar');
     }
-    const newUser: User = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      passwordHash: pass, // In real app, hash this password
-      profileType,
-    };
-    addUser(newUser);
-    setUser(newUser);
-    saveSession(newUser);
-    return newUser;
+    setUser(data);
+    saveSession(data);
+    return data;
   }, []);
 
   const logout = useCallback(() => {

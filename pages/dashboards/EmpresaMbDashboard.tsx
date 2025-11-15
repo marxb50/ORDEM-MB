@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSolicitations, updateSolicitation } from '../../services/storageService';
 import { Solicitation, SolicitationStatus, StatusUpdate } from '../../types';
@@ -69,11 +70,15 @@ export const EmpresaMbDashboard: React.FC = () => {
     const [solicitations, setSolicitations] = useState<Solicitation[]>([]);
     const { user } = useAuth();
     
-    const fetchAndSetSolicitations = useCallback(() => {
-        const allSolicitations = getSolicitations()
-            .filter(s => s.statusHistory.some(h => h.status === SolicitationStatus.ENVIADO_PARA_MB))
-            .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setSolicitations(allSolicitations);
+    const fetchAndSetSolicitations = useCallback(async () => {
+        try {
+            const allSolicitations = (await getSolicitations())
+                .filter(s => s.statusHistory.some(h => h.status === SolicitationStatus.ENVIADO_PARA_MB))
+                .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setSolicitations(allSolicitations);
+        } catch (error) {
+            console.error("Failed to fetch solicitations:", error);
+        }
     }, []);
 
     useEffect(() => {
@@ -82,7 +87,7 @@ export const EmpresaMbDashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, [fetchAndSetSolicitations]);
 
-    const handleUpdate = (id: string, newStatus: SolicitationStatus) => {
+    const handleUpdate = async (id: string, newStatus: SolicitationStatus) => {
         const solicitation = solicitations.find(s => s.id === id);
         if (solicitation && user) {
             const timestamp = new Date().toISOString();
@@ -96,8 +101,12 @@ export const EmpresaMbDashboard: React.FC = () => {
                 currentStatus: newStatus,
                 statusHistory: [...solicitation.statusHistory, newHistoryEntry],
             };
-            updateSolicitation(updatedSolicitation);
-            fetchAndSetSolicitations();
+            try {
+                await updateSolicitation(updatedSolicitation);
+                fetchAndSetSolicitations();
+            } catch (error) {
+                console.error("Failed to update solicitation:", error);
+            }
         }
     };
     

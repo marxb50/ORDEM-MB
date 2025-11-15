@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getSolicitations, updateSolicitation } from '../../services/storageService';
 import { Solicitation, SolicitationStatus, StatusUpdate } from '../../types';
@@ -62,8 +63,13 @@ export const FiscalSelimDashboard: React.FC = () => {
     const [solicitations, setSolicitations] = useState<Solicitation[]>([]);
     const { user } = useAuth();
     
-    const fetchAndSetSolicitations = useCallback(() => {
-        setSolicitations(getSolicitations().sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    const fetchAndSetSolicitations = useCallback(async () => {
+        try {
+            const data = await getSolicitations();
+            setSolicitations(data.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        } catch (error) {
+            console.error("Failed to fetch solicitations:", error);
+        }
     }, []);
 
     useEffect(() => {
@@ -72,7 +78,7 @@ export const FiscalSelimDashboard: React.FC = () => {
         return () => clearInterval(interval);
     }, [fetchAndSetSolicitations]);
 
-    const handleUpdate = (id: string, newStatus: SolicitationStatus) => {
+    const handleUpdate = async (id: string, newStatus: SolicitationStatus) => {
         const solicitation = solicitations.find(s => s.id === id);
         if (solicitation && user) {
             const timestamp = new Date().toISOString();
@@ -86,8 +92,12 @@ export const FiscalSelimDashboard: React.FC = () => {
                 currentStatus: newStatus,
                 statusHistory: [...solicitation.statusHistory, newHistoryEntry],
             };
-            updateSolicitation(updatedSolicitation);
-            fetchAndSetSolicitations();
+            try {
+                await updateSolicitation(updatedSolicitation);
+                fetchAndSetSolicitations();
+            } catch(error) {
+                console.error("Failed to update solicitation:", error);
+            }
         }
     };
     

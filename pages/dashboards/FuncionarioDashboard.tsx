@@ -1,11 +1,14 @@
+
 import React, { useState, useRef } from 'react';
-import { Camera, MapPin, Send, AlertCircle, Loader } from 'lucide-react';
+import { Camera, MapPin, Send, AlertCircle, Loader, Sparkles } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Textarea } from '../../components/ui/Textarea';
 import { useAuth } from '../../hooks/useAuth';
-import { GeolocationData, AddressData, Solicitation, SolicitationStatus, StatusUpdate } from '../../types';
+import { GeolocationData, AddressData, Solicitation, SolicitationStatus } from '../../types';
 import { addSolicitation } from '../../services/storageService';
+
+type Step = 'idle' | 'geolocating' | 'taking_photo' | 'submitting' | 'success' | 'error';
 
 export const FuncionarioDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -13,20 +16,34 @@ export const FuncionarioDashboard: React.FC = () => {
     const [geolocation, setGeolocation] = useState<GeolocationData | null>(null);
     const [address, setAddress] = useState<AddressData | null>(null);
     const [observation, setObservation] = useState('');
-    const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message: string }>({ type: 'idle', message: '' });
+    const [step, setStep] = useState<Step>('idle');
+    const [message, setMessage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleTakePhotoClick = () => {
-        fileInputRef.current?.click();
+    const resetState = () => {
+        setPhoto(null);
+        setGeolocation(null);
+        setAddress(null);
+        setObservation('');
+        setStep('idle');
+        setMessage('');
+    };
+    
+    const startProcess = () => {
+        setStep('geolocating');
+        setMessage('Obtendo coordenadas GPS...');
+        fetchGeolocation();
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) {
+            setStep('idle'); // User cancelled file selection
             return;
         }
 
-        setStatus({ type: 'loading', message: 'Processando foto...' });
+        setMessage('Processando foto...');
+        setStep('taking_photo');
 
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
@@ -34,8 +51,7 @@ export const FuncionarioDashboard: React.FC = () => {
         img.onload = () => {
             const MAX_WIDTH = 1280;
             const MAX_HEIGHT = 1280;
-            let width = img.width;
-            let height = img.height;
+            let { width, height } = img;
 
             if (width > height) {
                 if (width > MAX_WIDTH) {
@@ -53,39 +69,23 @@ export const FuncionarioDashboard: React.FC = () => {
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                setStatus({ type: 'error', message: 'Falha ao processar a imagem.' });
-                URL.revokeObjectURL(objectUrl);
-                return;
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-            
+            ctx!.drawImage(img, 0, 0, width, height);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
             setPhoto(dataUrl);
-            setStatus({ type: 'idle', message: '' });
-            fetchGeolocation();
-
+            setMessage('');
+            setStep('taking_photo'); // Ready to submit
             URL.revokeObjectURL(objectUrl);
         };
-
         img.onerror = () => {
-            setStatus({ type: 'error', message: 'O arquivo selecionado não é uma imagem válida.' });
+            setStep('error');
+            setMessage('O arquivo selecionado não é uma imagem válida.');
             URL.revokeObjectURL(objectUrl);
         };
-
         img.src = objectUrl;
     };
     
     const fetchGeolocation = () => {
-        setStatus({ type: 'loading', message: 'Obtendo coordenadas GPS...' });
-
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 10000, // 10 segundos de timeout
-            maximumAge: 0,
-        };
-
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
@@ -95,59 +95,49 @@ export const FuncionarioDashboard: React.FC = () => {
             },
             (error) => {
                 let errorMessage = 'Não foi possível obter a localização. ';
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        errorMessage += 'Permissão negada pelo usuário.';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        errorMessage += 'Sinal de GPS indisponível.';
-                        break;
-                    case error.TIMEOUT:
-                        errorMessage += 'A requisição expirou. Tente novamente.';
-                        break;
-                    default:
-                        errorMessage += 'Ocorreu um erro desconhecido.';
-                        break;
-                }
-                setStatus({ type: 'error', message: errorMessage });
+                if (error.code === error.PERMISSION_DENIED) errorMessage += 'Permissão negada.';
+                else if (error.code === error.POSITION_UNAVAILABLE) errorMessage += 'Sinal indisponível.';
+                else if (error.code === error.TIMEOUT) errorMessage += 'Tempo esgotado.';
+                setStep('error');
+                setMessage(errorMessage);
             },
-            options
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 
     const fetchAddress = async (geoData: GeolocationData) => {
-        setStatus({ type: 'loading', message: 'Localizando endereço...' });
+        setMessage('Localizando endereço...');
         try {
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${geoData.latitude}&lon=${geoData.longitude}`);
             if (!response.ok) throw new Error('Serviço de mapas indisponível.');
             const data = await response.json();
+            if (!data || !data.address) throw new Error('Endereço não encontrado.');
 
-            if (!data || !data.address) {
-                throw new Error('Formato de endereço inesperado.');
-            }
+            setAddress({
+                road: data.address.road || 'N/A',
+                suburb: data.address.suburb || 'N/A',
+                city: data.address.city || data.address.town || 'N/A',
+                postcode: data.address.postcode || 'N/A',
+                country: data.address.country || 'N/A',
+                display_name: data.display_name || 'N/A',
+            });
+            setMessage('Localização OK! Agora tire a foto.');
+            fileInputRef.current?.click();
 
-            const addr: AddressData = {
-                road: data.address.road || 'Rua não encontrada',
-                suburb: data.address.suburb || 'Bairro não encontrado',
-                city: data.address.city || data.address.town || data.address.village || 'Cidade não encontrada',
-                postcode: data.address.postcode || 'CEP não encontrado',
-                country: data.address.country || 'País não encontrado',
-                display_name: data.display_name || 'Endereço completo não disponível',
-            };
-            setAddress(addr);
-            setStatus({ type: 'idle', message: '' });
         } catch (error: any) {
-            setStatus({ type: 'error', message: `Não foi possível encontrar o endereço: ${error.message}` });
-            setAddress(null);
+            setStep('error');
+            setMessage(`Erro ao buscar endereço: ${error.message}`);
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!photo || !geolocation || !user) {
-            setStatus({ type: 'error', message: 'Foto e GPS são obrigatórios.' });
+            setStep('error');
+            setMessage('Foto e GPS são obrigatórios.');
             return;
         }
-        setStatus({ type: 'loading', message: 'Enviando...' });
+        setStep('submitting');
+        setMessage('Enviando solicitação...');
         
         const timestamp = new Date().toISOString();
         const newSolicitation: Solicitation = {
@@ -160,33 +150,44 @@ export const FuncionarioDashboard: React.FC = () => {
             observation,
             createdAt: timestamp,
             currentStatus: SolicitationStatus.ENVIADO_PARA_SELIM,
-            statusHistory: [{
-                status: SolicitationStatus.ENVIADO_PARA_SELIM,
-                updatedBy: user.name,
-                timestamp,
-            }],
+            statusHistory: [{ status: SolicitationStatus.ENVIADO_PARA_SELIM, updatedBy: user.name, timestamp }],
         };
         
-        addSolicitation(newSolicitation);
-        
-        setPhoto(null);
-        setGeolocation(null);
-        setAddress(null);
-        setObservation('');
-        setStatus({ type: 'success', message: 'Solicitação enviada com sucesso!' });
-        
-        setTimeout(() => setStatus({ type: 'idle', message: '' }), 3000);
+        try {
+            await addSolicitation(newSolicitation);
+            setStep('success');
+            setMessage('Solicitação enviada com sucesso!');
+            setTimeout(resetState, 3000);
+        } catch (error) {
+            setStep('error');
+            setMessage('Falha ao enviar. Tente novamente.');
+        }
     };
 
-    const getStatusColor = () => {
-        switch (status.type) {
-            case 'loading': return 'text-blue-600';
-            case 'success': return 'text-selim-green';
-            case 'error': return 'text-red-600';
-            default: return 'text-premium-gray-500';
-        }
-    }
+    const renderStatus = () => {
+      if (!message) return null;
+      const isLoading = step === 'geolocating' || step === 'submitting';
+      return (
+        <div className={`flex items-center p-3 rounded-lg my-4 text-sm ${step === 'error' ? 'text-red-600 bg-red-100' : 'text-blue-600 bg-blue-100'}`}>
+            {isLoading && <Loader className="h-5 w-5 mr-2 animate-spin"/>}
+            {step === 'error' && <AlertCircle className="h-5 w-5 mr-2"/>}
+            {message}
+        </div>
+      );
+    };
 
+    if (step === 'success') {
+        return (
+            <div className="container mx-auto p-4 sm:p-6 lg:p-8 flex justify-center items-center">
+                <Card className="text-center">
+                    <Sparkles className="h-16 w-16 mx-auto text-selim-green"/>
+                    <h2 className="text-2xl font-bold text-selim-dark-blue mt-4">{message}</h2>
+                    <p className="text-premium-gray-500">Você será redirecionado em breve.</p>
+                </Card>
+            </div>
+        );
+    }
+    
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
             <Card className="max-w-2xl mx-auto">
@@ -194,15 +195,13 @@ export const FuncionarioDashboard: React.FC = () => {
                 
                 <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-                {!photo ? (
-                    <button onClick={handleTakePhotoClick} className="w-full h-64 border-2 border-dashed border-premium-gray-300 rounded-lg flex flex-col items-center justify-center text-premium-gray-500 hover:bg-premium-gray-50 transition-colors">
-                        <Camera className="h-16 w-16" />
-                        <span className="mt-2 text-lg font-semibold">Tirar Foto do Local</span>
-                    </button>
-                ) : (
+                {step === 'idle' && (
+                    <Button onClick={startProcess}><Camera className="h-5 w-5 mr-2"/> Iniciar Solicitação</Button>
+                )}
+
+                {photo && (
                     <div className="mb-4">
                         <img src={photo} alt="Captura do local" className="w-full h-auto rounded-lg shadow-md" />
-                        <button onClick={() => setPhoto(null)} className="text-sm text-red-500 hover:underline mt-2">Remover foto</button>
                     </div>
                 )}
 
@@ -212,28 +211,24 @@ export const FuncionarioDashboard: React.FC = () => {
                             <MapPin className="h-8 w-8 text-selim-green flex-shrink-0 mt-1" />
                             <div>
                                 <h3 className="font-bold text-selim-dark-blue">Localização Capturada</h3>
-                                <p className="text-sm text-premium-gray-600">Lat: {geolocation.latitude.toFixed(5)}, Lon: {geolocation.longitude.toFixed(5)}</p>
-                                {address && <p className="text-sm text-premium-gray-800 mt-1">{address.road}, {address.suburb}, {address.city}</p>}
+                                {address && <p className="text-sm text-premium-gray-800 mt-1">{address.road}, {address.suburb}</p>}
                                 <iframe className="mt-2 w-full h-48 rounded-lg border" title="map" src={`https://www.openstreetmap.org/export/embed.html?bbox=${geolocation.longitude-0.005},${geolocation.latitude-0.005},${geolocation.longitude+0.005},${geolocation.latitude+0.005}&layer=mapnik&marker=${geolocation.latitude},${geolocation.longitude}`} ></iframe>
                             </div>
                         </div>
                     </Card>
                 )}
                 
-                {status.message && (
-                    <div className={`flex items-center p-3 rounded-lg my-4 text-sm ${getStatusColor()} bg-opacity-10 ${status.type === 'error' ? 'bg-red-100' : 'bg-blue-100'}`}>
-                        {status.type === 'loading' && <Loader className="h-5 w-5 mr-2 animate-spin"/>}
-                        {status.type === 'error' && <AlertCircle className="h-5 w-5 mr-2"/>}
-                        {status.message}
+                {renderStatus()}
+
+                {(photo || observation) && step !== 'idle' && step !== 'geolocating' && (
+                     <div className="space-y-4 mt-4">
+                        <Textarea id="observation" label="Observação (opcional)" value={observation} onChange={(e) => setObservation(e.target.value)} />
+                        <Button onClick={handleSubmit} disabled={!photo || !geolocation || step === 'submitting'} isLoading={step === 'submitting'}>
+                            <Send className="h-5 w-5 mr-2" /> Enviar para Fiscal SELIM
+                        </Button>
+                        <Button onClick={resetState} variant='danger' disabled={step === 'submitting'}>Cancelar</Button>
                     </div>
                 )}
-
-                <div className="space-y-4">
-                    <Textarea id="observation" label="Observação (opcional)" value={observation} onChange={(e) => setObservation(e.target.value)} />
-                    <Button onClick={handleSubmit} disabled={!photo || !geolocation || status.type === 'loading'} isLoading={status.type === 'loading'}>
-                        <Send className="h-5 w-5 mr-2" /> Enviar para Fiscal SELIM
-                    </Button>
-                </div>
             </Card>
         </div>
     );
